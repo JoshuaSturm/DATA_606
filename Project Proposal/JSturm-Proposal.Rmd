@@ -1,0 +1,210 @@
+---
+title: "DATA 606 - Final Project"
+author: "Joshua Sturm"
+date: "December 15th, 2017"
+output:
+  pdf_document:
+    keep_tex: yes
+  html_document:
+    highlight: pygments
+    theme: cerulean
+    code_folding: show
+    toc: yes
+    toc_float: yes
+    smart: no
+  always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T,
+                      cache = T,
+                      stringsAsFactors = F,
+                      warning = F,
+                      message = F)
+```
+
+
+```{r libraries, warning = F, message = F}
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+library(here)
+```
+
+```{r load-datasets, cache = T}
+#setwd(here('GitHub', 'CUNY_MSDA', 'Fall_2017', 'DATA_606', 'Project Proposal'))
+#
+# Load the files from the working directory
+#
+amendments_raw <- read.csv("amendment_list.csv")
+members_raw <- read.csv("congress_terms.csv")
+#
+# Remove empty column, and remove all rows with missing data
+#
+bills <- read.csv("bills93-114.csv", header = T, na.strings = c('', 'NULL')) %>%
+  select(-7)
+bills <- bills[complete.cases(bills), ]
+```
+
+## Part 1: Introduction
+
+Is there a relationship between the average age of congress (members) and the number of constitutional amendments proposed?
+
+The average age of congressional representatives has been steadily climbing since the second world war. The current (115th) one is among the oldest in its history. How has this affected the effectiveness of congress? Are older more representatives more or less active?
+
+I plan to explore this via proxy, by taking a look at all the *constitutional amendments* proposed since the first congress through the 113th, and recording the age of each of the bill's sponsors. Additionally, I will seek any interesting tidbits in the data, such as the most active years, as well as which state representatives propose the most legislation.
+
+## Part 2: Data
+
+### Data collection
+
+The amendment list was retrieved from [Kaggle](https://www.kaggle.com/national-archives/amending-america/data), while the members list was taken from [FiveThirtyEight](https://github.com/fivethirtyeight/data/tree/master/congress-age).
+Another source is from the [Wall Street Journal](http://online.wsj.com/public/resources/documents/info-CONGRESS_AGES_1009.html).
+For the analysis, I used a different dataset, retrieved from [CongressionalBills.org](http://www.congressionalbills.org/download.html).
+
+The list of 11,000+ amendments was compiled by staff and volunteers of the National Archives and Records Administration.
+The list of representatives was compiled by [The UnitedStates Project](https://theunitedstates.io/) (House members), and [The New York Times Congress API](https://developer.nytimes.com/) (senate).
+
+### Cases
+
+Each case represents a constitional amendment proposed by congress. There are a total of `r nrow(amendments_raw)` cases in this dataset.
+
+### Variables
+
+The response variable is legislative activity and is numerical.
+
+The explanatory variable is median age of congressional representatives and is numerical.
+
+### Type of study
+
+This is an observational study.
+
+### Scope of inference - generalizability
+This is a large enough sample of bills passed that we can generalize the results to the overall 'population'.
+
+### Scope of inference - causality
+
+The data cannot be used to establish causal links, since it's only an observational study.
+
+## Part 3: Exploratory data analysis
+
+```{r data-analysis}
+
+#
+# Tidy the datasets
+#
+# Keep only the relevant columns
+amendments <- amendments_raw %>%
+  select(5, 7:ncol(amendments_raw)-1, -6)
+
+# Use regex to shift errant data to their appropriate columns
+for (i in 1:(length(amendments$year))) {
+  pat <- "\\D{3,}"
+  if (grepl(pat, amendments[i, "month"]) == 1)
+  {
+    amendments[i, "year"] <- amendments[i, "month"]
+    amendments[i, "month"] <- amendments[i, "day"]
+    amendments[i, "day"] <- amendments[i, "congress"]
+    amendments[i, "congress"] <- amendments[i, "congressional_session"]
+    amendments[i, "congressional_session"] <- amendments[i, "joint_resolution_chamber"]
+  }
+}
+amendments$year <- gsub("\\D{4}$", "", amendments$year)
+
+members <- members_raw %>%
+  select(-c(3,7))
+```
+
+Let's take a look at what the data has to say.
+
+```{r by-year-graph}
+#
+# Which years had the most bills?
+#
+
+by_year_graph <- ggplot(amendments, aes(year)) +
+  geom_bar() +
+  scale_x_discrete(breaks=seq(1788, 2014, 20))
+by_year_graph <- ggplotly(by_year_graph)
+by_year_graph
+```
+
+There is a noticeable spike in the 60s through 80s; my guess would be it's related to the civil rights movement.
+We can see the most common titles/descriptions of all bills:
+
+```{r title-description}
+head(summary(amendments$title_or_description_from_source))
+```
+
+Three of the top four most common amendments are indeed related to civil rights.
+
+```{r by-state-graph}
+amendments <- amendments %>%
+  filter(!sponsor_state_or_territory %in% "")
+by_state_graph <- ggplot(amendments, aes(sponsor_state_or_territory)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 90))
+  #scale_x_discrete(breaks=seq(1788, 2014, 20))
+by_state_graph <- ggplotly(by_state_graph)
+by_state_graph
+```
+
+New York congressmen have proposed the most amendments, followed by those from Texas and California.
+
+```{r summary-members}
+#
+# Create new df of unique congressmen - remove duplicates
+#
+members_unique <- members %>%
+  distinct(lastname, birthday, .keep_all = T)
+
+table(members_unique$party)
+table(members_unique$incumbent)
+summary(members$age)
+```
+The two major parties dominate, and are roughly even in number.
+
+Since we removed duplicates, it's reporting most congressmen were not incumbents; if we were to include the duplicates, surely the incumbents column would be several times larger.
+
+The average senator is 53 years old at the time of their inauguration. I'm not sure what's more surprising - that there was a congress member aged 25, or that there was a congress member aged 98!
+
+```{r age-over-time}
+age_year_graph <- ggplot(members, aes(congress, age)) +
+  geom_point() +
+  stat_summary(aes(y = age, group = 1), fun.y = mean, colour = "red", geom = "line", group = 1)
+age_year_graph <- ggplotly(age_year_graph)
+age_year_graph
+```
+
+Congress is definitely getting older. The average age of congress members in the 80th congress was $\approx 52.5$ years old. In the 113th congress, the average age was $\approx 57.6$ years old!
+
+## Part 4: Inference
+
+$H_0$: Each bill has an equal chance to pass, regardless of the sponsor's party, age, district, terms served, etc.   
+
+$H_1$: Each bill does not have an equal chance, i.e. there are variables that can alter the probability of passing.
+
+*Independence*: We can assume that the bills are independent of each other.
+*Sample size*: Each sample has at least 5 cases.
+ 
+```{r analysis}
+
+formula <- 'PLaw ~ Age + ComC + CumHServ + District + Gender + Majority + Party + State'
+model <- glm(formula= formula, data=bills, family=binomial(link="logit"))
+summary(model)
+anova(model, test="Chisq")
+
+age_chart <- ggplot(bills, aes(x = Age)) +
+  geom_bar()
+ggplotly(age_chart)
+```
+
+## Conclusion
+
+Our initial question, whether age plays a role in legislation passed, seems to vary based on the _type_ of legislation. Constitutional amendments tend to be proposed by older representatives, while overall, the introduction and sponsorship of laws leans toward younger ones.
+
+There were some obvious findings in the data: average age of congress members is climbing; the two major parties dominate in congress; most representatives are incumbents, i.e. most server multiple terms; and representatives from the more populous states tend to write more laws.
+
+But there were also some more surprising ones: most of the amendments were proposed in the civil rights era; representatives from states that introduce less legislation often get theirs signed into law; there are variables that can affect a bill's chances of getting signed into law.
+
+Unfortunately, it's difficult to find proper data on this subject. There are projects, both governmental and NGO-run, that are working toward 'opening' a lot of it, but it's still in the nascent stages, and, thus far, only have information on the most recent congresses. There are a lot of gaps, and not many overlaps, in the data, which practically makes it impossible to do any predictive analysis. When these projects mature, and more data is available, that would be an interesting project to undertake.

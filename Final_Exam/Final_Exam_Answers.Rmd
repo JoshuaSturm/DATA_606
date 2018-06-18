@@ -1,0 +1,189 @@
+---
+title: "DATA 606 Fall 2017 - Final Exam"
+author: "Joshua Sturm"
+output:
+  html_document:
+    highlight: pygments
+    theme: cerulean
+    code_folding: show
+    toc: yes
+    toc_float: yes
+    smart: no
+  pdf_document:
+    keep_tex: yes
+always_allow_html: yes
+---
+
+# Part I
+
+Please put the answers for Part I next to the question number (2pts each):
+
+1. B. Quantitative - counts, discrete - whole numbers.
+2. A. Since the histogram is left-skewed, we can assume that the median is larger than the mean. Between a, c, and e, a seems the most realistic.
+3. A. B is an observational study, and cannot be used to draw causality inferences.
+4. D. A large chi-square test means the data is ill-fitted, and there is no relationship.
+5. B. We have the formulas $Q_1 - IQR\cdot1.5$ and $Q_3 + IQR\cdot1.5$.
+```{r}
+q1 <- 37
+q3 <- 49.8
+iqr <- q3 - q1
+iqr.15 <- 1.5 * iqr
+q1 - iqr.15
+q3 + iqr.15
+```
+6. D.   
+
+7a. Describe the two distributions (2pts).
+
+*A* - Unimodal, right-skewed, nearly-normal.
+
+*B* - unimodal, symmetrical, nearly-normal.
+
+7b. Explain why the means of these two distributions are similar but the standard deviations are not (2 pts).
+
+Since B has many, random, independent samples from A, it will be nearly normal, and have a similar mean.
+With fewer samples, there is more spread, and samples farther from the mean.
+The formula for the SD in B is $\frac{sd}{\sqrt{n}}$.
+
+7c. What is the statistical principal that describes this phenomenon (2 pts)?
+
+This is known as the Central Limit Theorem. If the sample size is greater than 30, each one being independent of the other, and no significant skew, it follows (converges toward) a normal distribution.
+
+# Part II
+
+Consider the four datasets, each with two columns (x and y), provided below. 
+
+```{r}
+#options(digits=2)
+options(digits=10)
+data1 <- data.frame(x=c(10,8,13,9,11,14,6,4,12,7,5),
+					y=c(8.04,6.95,7.58,8.81,8.33,9.96,7.24,4.26,10.84,4.82,5.68))
+data2 <- data.frame(x=c(10,8,13,9,11,14,6,4,12,7,5),
+					y=c(9.14,8.14,8.74,8.77,9.26,8.1,6.13,3.1,9.13,7.26,4.74))
+data3 <- data.frame(x=c(10,8,13,9,11,14,6,4,12,7,5),
+					y=c(7.46,6.77,12.74,7.11,7.81,8.84,6.08,5.39,8.15,6.42,5.73))
+data4 <- data.frame(x=c(8,8,8,8,8,8,8,19,8,8,8),
+					y=c(6.58,5.76,7.71,8.84,8.47,7.04,5.25,12.5,5.56,7.91,6.89))
+```
+
+For each column, calculate (to two decimal places):
+
+#### a. The mean (for x and y separately; 1 pt).
+
+```{r}
+#
+# These may not be the most efficient way. Also, I would put them into a dataframe, or nicer display output
+#
+mean = lapply(
+  c(data1, data2, data3, data4),
+  function(x) 
+  {
+    y <- mean(x)
+    round(y, 2)
+  }
+)
+mean
+```
+
+#### b. The median (for x and y separately; 1 pt).
+
+```{r}
+median = lapply(
+  c(data1, data2, data3, data4),
+  function(x) 
+  {
+    y <- median(x)
+    round(y, 2)
+  }
+)
+median
+```
+
+#### c. The standard deviation (for x and y separately; 1 pt).
+
+```{r}
+sd = lapply(
+  c(data1, data2, data3, data4),
+  function(x) 
+  {
+    y <- sd(x)
+    round(y, 2)
+  }
+)
+sd
+```
+
+#### For each x and y pair, calculate (also to two decimal places; 1 pt):
+
+#### d. The correlation (1 pt).
+
+```{r}
+round(cor(data1), 2)
+round(cor(data2), 2)
+round(cor(data3), 2)
+round(cor(data4), 2)
+```
+
+#### e. Linear regression equation (2 pts).
+
+```{r}
+par(mfrow = c(2, 2))
+lr1 <- lm(y ~ x, data1)
+print(summary(lr1), round(2))
+plot(lr1)
+
+lr2 <- lm(y ~ x, data2)
+print(summary(lr2), round(2))
+plot(lr2)
+
+lr3 <- lm(y ~ x, data3)
+print(summary(lr3), round(2))
+plot(lr3)
+
+lr4 <- lm(y ~ x, data4)
+print(summary(lr4), round(2))
+plot(lr4)
+```
+
+#### f. R-Squared (2 pts).
+
+```{r}
+print(summary(lr1)$r.squared, round(2))
+print(summary(lr2)$r.squared, round(2))
+print(summary(lr3)$r.squared, round(2))
+print(summary(lr4)$r.squared, round(2))
+```
+
+
+#### For each pair, is it appropriate to estimate a linear regression model? Why or why not? Be specific as to why for each pair and include appropriate plots! (4 pts)
+
+There are four requirements for linear regression:
+ - Linearity
+ - Nearly normal residuals
+ - Constant Variability
+ - Independent observations
+
+```{r}
+plot(data1, main ='data1')
+hist(lr1$residuals)
+plot(data2, main = 'data2')
+hist(lr2$residuals)
+plot(data3, main = 'data3')
+hist(lr3$residuals)
+plot(data4, main = 'data4')
+hist(lr4$residuals)
+```
+
+
+ - *Dataset 1*: Plot seems normal, but the residuals are not.
+ - *Dataset 2*: Plot is not linear, and residuals are not normal.
+ - *Dataset 3*: Seems normal, except for the outlier, which skews the histogram.
+ - *Dataset 4*: No variability in the plot, and also has an outlier.
+ 
+If any of the four were apropriate for linear regression, I'd go with three.
+
+#### Explain why it is important to include appropriate visualizations when analyzing data. Include any visualization(s) you create. (2 pts)
+
+If you want a quick idea of the subject without delving into the numbers, it's easy to look at a graph. Also, you can spot things you might miss in the numbers, e.g. the outliers.
+Visualizations are also a good way to summarize a lot of information in a clean, concise, understandable format.
+Lastly, many people are visual learners. They need graphics to aid their understanding.
